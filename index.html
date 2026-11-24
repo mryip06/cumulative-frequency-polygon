@@ -817,7 +817,7 @@
     let MIN_X = 8000;
     let MAX_X = 22000;
     let MIN_Y = 0;
-    let MAX_Y = 65;
+    let MAX_Y = 70;
     let SCALE_X = GRID_WIDTH / (MAX_X - MIN_X);
     let SCALE_Y = GRID_HEIGHT / (MAX_Y - MIN_Y);
 
@@ -833,7 +833,7 @@
         yMajor: null,
         yMinor: null
       },
-      axisRange: { xMin: null, xMax: null, yMin: null, yMax: null },
+      axisRange: { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 },
       axisOrigin: { x: 8000, y: 0 },
       fontSizes: JSON.parse(JSON.stringify(defaultFontSizes)),
       texts: {
@@ -991,7 +991,8 @@
     }
 
     function getNiceSubStep(span, targetLines) {
-      const rough = span / Math.max(4, targetLines);
+      const safeSpan = Math.max(1e-6, Math.abs(Number(span) || 1));
+      const rough = safeSpan / Math.max(4, targetLines);
       const pow10 = Math.pow(10, Math.floor(Math.log10(rough)));
       const norm = rough / pow10;
       let mult = 1;
@@ -999,7 +1000,7 @@
       else if (norm <= 2) mult = 2;
       else if (norm <= 5) mult = 5;
       else mult = 10;
-      return Number((mult * pow10).toFixed(6));
+      return Math.max(1e-6, Number((mult * pow10).toFixed(6)));
     }
 
     function getEffectiveGridSteps() {
@@ -1047,7 +1048,8 @@
       };
 
       // Vertical grid lines (minor -> mid -> major) anchored to MIN_X (axis intersection X)
-      for (let v = MIN_X; v <= MAX_X + xMinorStep * 1e-4; v += xMinorStep) {
+      const safeXMinor = Math.max(1e-6, Number(xMinorStep) || 1);
+      for (let v = MIN_X; v <= MAX_X + safeXMinor * 1e-4; v += safeXMinor) {
         const cleanV = Number(v.toFixed(6));
         const px = Number(xToPx(cleanV).toFixed(2));
         if (px < ORIGIN_X - 0.5 || px > rightX + 0.5) continue;
@@ -1063,7 +1065,8 @@
       }
 
       // Horizontal grid lines (minor -> mid -> major) anchored to MIN_Y (axis intersection Y)
-      for (let v = MIN_Y; v <= MAX_Y + yMinorStep * 1e-4; v += yMinorStep) {
+      const safeYMinor = Math.max(1e-6, Number(yMinorStep) || 0.5);
+      for (let v = MIN_Y; v <= MAX_Y + safeYMinor * 1e-4; v += safeYMinor) {
         const cleanV = Number(v.toFixed(6));
         const py = Number(yToPx(cleanV).toFixed(2));
         if (py < topY - 0.5 || py > ORIGIN_Y + 0.5) continue;
@@ -1093,13 +1096,15 @@
       if (!yLabelsGroup || !xLabelsGroup) return;
 
       const { xMajorStep, yMajorStep } = getEffectiveGridSteps();
-      const yLabelStep = Math.max(0.5, parseFloat(state.yInterval) || yMajorStep);
+      const safeYMajor = Math.max(1e-6, Number(yMajorStep) || 1);
+      const safeXMajor = Math.max(1e-6, Number(xMajorStep) || 1);
+      const yLabelStep = Math.max(0.5, parseFloat(state.yInterval) || safeYMajor);
       const topY = ORIGIN_Y - GRID_HEIGHT;
       const rightX = ORIGIN_X + GRID_WIDTH;
       let yHtml = '';
 
       // Align Y ticks to major gridlines anchored at MIN_Y and show label at chosen Y label interval
-      for (let v = MIN_Y; v <= MAX_Y + yMajorStep * 1e-4; v += yMajorStep) {
+      for (let v = MIN_Y; v <= MAX_Y + safeYMajor * 1e-4; v += safeYMajor) {
         const cleanV = Number(v.toFixed(4));
         const py = Number(yToPx(cleanV).toFixed(2));
         if (py < topY - 0.5 || py > ORIGIN_Y + 0.5) continue;
@@ -1127,8 +1132,8 @@
           `;
         });
       } else {
-        const xLabelStep = Math.max(1, parseFloat(state.xInterval) || xMajorStep);
-        for (let xVal = MIN_X; xVal <= MAX_X + xMajorStep * 1e-4; xVal += xMajorStep) {
+        const xLabelStep = Math.max(1, parseFloat(state.xInterval) || safeXMajor);
+        for (let xVal = MIN_X; xVal <= MAX_X + safeXMajor * 1e-4; xVal += safeXMajor) {
           const cleanX = Number(xVal.toFixed(4));
           const px = Number(xToPx(cleanX).toFixed(2));
           if (px < ORIGIN_X - 0.5 || px > rightX + 0.5) continue;
@@ -1137,7 +1142,7 @@
           const showLabel = Math.abs(offsetX - Math.round(offsetX / xLabelStep) * xLabelStep) <= xLabelStep * 1e-3;
           let displayLabel = Number(cleanX.toFixed(2));
           if (state.snapToNearestGrid) {
-            const matchedPt = getPoints().find(p => Math.abs(getPlottedPoint(p).plotX - cleanX) <= xMajorStep * 0.25);
+            const matchedPt = getPoints().find(p => Math.abs(getPlottedPoint(p).plotX - cleanX) <= safeXMajor * 0.25);
             if (matchedPt) displayLabel = matchedPt.x;
           }
           xHtml += `
@@ -1761,7 +1766,8 @@
       if (btnSidebarResetData) {
         btnSidebarResetData.addEventListener('click', () => {
           state.dataPoints = JSON.parse(JSON.stringify(defaultPoints));
-          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          state.axisRange = { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 };
+          state.axisOrigin = { x: 8000, y: 0 };
           renderSidebarDataTable();
           updateAll();
         });
@@ -1816,7 +1822,7 @@
 
       if (btnAutoAxisRange) {
         btnAutoAxisRange.addEventListener('click', () => {
-          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          state.axisRange = { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 };
           updateAll();
         });
       }
@@ -1829,15 +1835,11 @@
           const oy = parseFloat(document.getElementById('input-origin-y')?.value);
           if (!isNaN(ox)) {
             state.axisOrigin.x = ox;
-            if (state.axisRange.xMin === null) {
-              state.axisRange.xMin = ox;
-            }
+            state.axisRange.xMin = ox;
           }
           if (!isNaN(oy)) {
             state.axisOrigin.y = oy;
-            if (state.axisRange.yMin === null) {
-              state.axisRange.yMin = oy;
-            }
+            state.axisRange.yMin = oy;
           }
           updateAll();
         });
@@ -1846,8 +1848,7 @@
       if (btnResetAxisOrigin) {
         btnResetAxisOrigin.addEventListener('click', () => {
           state.axisOrigin = { x: 8000, y: 0 };
-          if (state.axisRange.xMin !== null) state.axisRange.xMin = 8000;
-          if (state.axisRange.yMin !== null) state.axisRange.yMin = 0;
+          state.axisRange = { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 };
           updateAll();
         });
       }
@@ -1869,7 +1870,7 @@
           state.yInterval = "10";
           state.xInterval = "points";
           state.gridIntervals = { xMajor: null, xMinor: null, yMajor: null, yMinor: null };
-          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          state.axisRange = { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 };
           state.axisOrigin = { x: 8000, y: 0 };
           state.fontSizes = JSON.parse(JSON.stringify(defaultFontSizes));
           state.texts = { title: "60個住宅單位每月租金", yTitle: "累積頻數", xTitle: "租金少於 (元)" };
@@ -1894,22 +1895,32 @@
     }
 
     function updateAll() {
-      renderGrid();
-      renderAxisLabels();
-      renderPolygon();
-      renderQuartiles();
-      renderCustomLines();
-      applyTitlePositions();
-      applyFontSizes();
+      try {
+        renderGrid();
+        renderAxisLabels();
+        renderPolygon();
+        renderQuartiles();
+        renderCustomLines();
+        applyTitlePositions();
+        applyFontSizes();
+      } catch (err) {
+        console.error('Error updating graph:', err);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      initEvents();
-      setupDragEvents();
-      setupHoverFontControls();
-      setupGraphHUD();
-      renderSidebarDataTable();
-      updateAll();
+      try {
+        state.axisRange = { xMin: 8000, xMax: 22000, yMin: 0, yMax: 70 };
+        state.axisOrigin = { x: 8000, y: 0 };
+        initEvents();
+        setupDragEvents();
+        setupHoverFontControls();
+        setupGraphHUD();
+        renderSidebarDataTable();
+        updateAll();
+      } catch (err) {
+        console.error('Initialization error:', err);
+      }
     });
   </script>
 </body>
