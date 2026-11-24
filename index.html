@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>累積頻數多邊形互動圖表</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+    .top-header-inner {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .brand-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .brand-sub {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .n-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.08s ease;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-success {
+      background: #059669;
+      color: #ffffff;
+    }
+    .btn-success:hover {
+      background: #047857;
+    }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    .btn-danger-soft {
+      background: #fff1f2;
+      color: #be123c;
+      border-color: #fecdd3;
+    }
+    .btn-danger-soft:hover {
+      background: #ffe4e6;
+    }
+    .btn-dark {
+      background: #0f172a;
+      color: #ffffff;
+    }
+    .btn-dark:hover {
+      background: #1e293b;
+    }
+    .main-grid {
+      flex: 1;
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr) 300px;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1180px) {
+      .main-grid {
+        grid-template-columns: 320px minmax(0, 1fr);
+      }
+      .right-data-panel {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 820px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .sidebar-col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .card-hint {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .coord-bar {
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .coord-label {
+      color: #60a5fa;
+      font-weight: 700;
+    }
+    .coord-val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #e2e8f0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #475569;
+      margin-bottom: 4px;
+    }
+    .input-control, .select-control {
+      width: 100%;
+      padding: 6px 9px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .input-control:focus, .select-control:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+      background: #ffffff;
+    }
+    .checkbox-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #334155;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .q-btn {
+      padding: 8px 6px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .q-btn-1 { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+    .q-btn-2 { background: #fef2f2; color: #991b1b; border-color: #fca5a5; }
+    .q-btn-3 { background: #f5f3ff; color: #5b21b6; border-color: #c4b5fd; }
+    .font-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .font-mini-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+      color: #0f172a;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .graph-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .svg-container {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .svg-container svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .data-table-wrap {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      max-height: 440px;
+      overflow-y: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .data-table th {
+      background: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      padding: 7px 6px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .data-table td {
+      padding: 5px 6px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .data-table input {
+      width: 100%;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+    }
+    .del-row-btn {
+      border: none;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 3px 7px;
+      cursor: pointer;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+    .modal-panel {
+      background: #ffffff;
+      border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+    }
+    .modal-head, .modal-foot {
+      padding: 12px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-foot {
+      border-top: 1px solid #e2e8f0;
+      border-bottom: none;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .modal-body {
+      padding: 16px 18px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+  <div class="app-shell">
+
+  <!-- Top Navigation / Toolbar -->
+  <header class="top-header bg-white border-b border-slate-200 shadow-sm sticky top-0 z-20">
+    <div class="top-header-inner max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
+      <div class="brand-box flex items-center gap-2.5">
+        <span class="brand-icon inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-sm shadow-sm">Q</span>
+        <div>
+          <h1 class="brand-title text-sm sm:text-base font-bold text-slate-900 leading-tight">累積頻數多邊形互動分析器</h1>
+          <p class="brand-sub text-[11px] text-slate-500 hidden sm:block">支援拖曳標題、懸停調整字型大小、四分位數 (Q1/Q2/Q3) 與自訂參考線</p>
+        </div>
+        <span id="current-n-badge" class="n-badge ml-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-200">N = 60</span>
+      </div>
+
+      <div class="toolbar-actions flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <button id="btn-export-png" type="button" class="btn btn-success px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <span>匯出 PNG (試卷用)</span>
+        </button>
+        <button id="btn-open-data-editor" type="button" class="btn btn-primary px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <span>修改標題</span>
+        </button>
+        <button id="btn-reset-title-pos" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer">
+          重設標題位置
+        </button>
+        <button id="btn-reset-fonts" type="button" class="btn btn-secondary px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition cursor-pointer">
+          重設字型
+        </button>
+        <button id="btn-reset" type="button" class="btn btn-danger-soft px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition cursor-pointer">
+          全部重設
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="main-grid flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+    <!-- Left Sidebar Controls -->
+    <aside class="sidebar-col lg:col-span-3 space-y-3.5">
+
+      <!-- Live Coordinates Readout -->
+      <div class="coord-bar bg-slate-900 text-slate-100 rounded-xl p-3 shadow-sm border border-slate-800 flex items-center justify-between gap-2">
+        <span class="coord-label text-xs font-semibold text-blue-400 shrink-0">游標座標</span>
+        <span id="live-readouts" class="coord-val text-xs font-mono text-slate-200 truncate">X: -- | Y: --</span>
+      </div>
+
+      <!-- Axis Interval & Display Options -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+        <div class="card-title-row">
+          <h2 class="card-title text-sm font-bold text-slate-800">刻度間距與顯示設定</h2>
+          <span class="card-hint text-[11px] font-normal text-slate-400">即時更新</span>
+        </div>
+
+        <div class="grid-2 grid grid-cols-2 gap-2.5">
+          <div>
+            <label for="sel-y-interval" class="field-label block text-xs font-medium text-slate-600 mb-1">Y軸數字間距</label>
+            <select id="sel-y-interval" class="select-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="2">每 2 顯示</option>
+              <option value="5">每 5 顯示</option>
+              <option value="10" selected>每 10 顯示</option>
+              <option value="20">每 20 顯示</option>
+            </select>
+          </div>
+          <div>
+            <label for="sel-x-interval" class="field-label block text-xs font-medium text-slate-600 mb-1">X軸數字間距</label>
+            <select id="sel-x-interval" class="select-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="points" selected>只顯示數據點</option>
+              <option value="1000">每 1000</option>
+              <option value="2000">每 2000</option>
+              <option value="4000">每 4000</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2 grid grid-cols-2 gap-2.5">
+          <div>
+            <label for="input-y-major" class="field-label block text-xs font-medium text-slate-600 mb-1">Y 主格線間距</label>
+            <input id="input-y-major" type="number" min="0.1" step="any" placeholder="自動" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+          </div>
+          <div>
+            <label for="input-y-minor" class="field-label block text-xs font-medium text-slate-600 mb-1">Y 細格線間距</label>
+            <input id="input-y-minor" type="number" min="0.05" step="any" placeholder="自動" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+          </div>
+        </div>
+
+        <div class="grid-2 grid grid-cols-2 gap-2.5">
+          <div>
+            <label for="input-x-major" class="field-label block text-xs font-medium text-slate-600 mb-1">X 主格線間距</label>
+            <input id="input-x-major" type="number" min="1" step="any" placeholder="自動" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+          </div>
+          <div>
+            <label for="input-x-minor" class="field-label block text-xs font-medium text-slate-600 mb-1">X 細格線間距</label>
+            <input id="input-x-minor" type="number" min="1" step="any" placeholder="自動" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+          </div>
+        </div>
+
+        <label class="checkbox-row inline-flex items-center gap-2 cursor-pointer text-xs sm:text-sm text-slate-700">
+          <input id="chk-show-points" type="checkbox" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500" />
+          <span>顯示數據節點圓點</span>
+        </label>
+
+        <label class="checkbox-row inline-flex items-center gap-2 cursor-pointer text-xs sm:text-sm text-slate-700">
+          <input id="chk-snap-grid" type="checkbox" checked class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500" />
+          <span>自動放最近格子點（保留原輸入標籤）</span>
+        </label>
+      </div>
+
+      <!-- Custom X & Y Axis Range -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+        <div class="card-title-row flex items-center justify-between">
+          <h2 class="card-title text-sm font-bold text-slate-800">座標軸範圍設定 (由幾多至幾多)</h2>
+          <button id="btn-auto-axis-range" type="button" class="btn btn-secondary text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer">自動範圍</button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div style="margin-bottom:8px;">
+            <span class="field-label block font-medium text-slate-600 mb-1">X 軸範圍 (由 ～ 至)</span>
+            <div class="grid-2 grid grid-cols-2 gap-2">
+              <input id="input-x-min" type="number" step="any" placeholder="X 起點" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+              <input id="input-x-max" type="number" step="any" placeholder="X 終點" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <span class="field-label block font-medium text-slate-600 mb-1">Y 軸範圍 (由 ～ 至)</span>
+            <div class="grid-2 grid grid-cols-2 gap-2">
+              <input id="input-y-min" type="number" step="any" placeholder="Y 起點" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+              <input id="input-y-max" type="number" step="any" placeholder="Y 終點" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+            </div>
+          </div>
+
+          <button id="btn-apply-axis-range" type="button" class="btn btn-dark w-full py-1.5 px-3 text-xs sm:text-sm font-semibold rounded-lg bg-slate-800 hover:bg-slate-900 text-white transition cursor-pointer" style="width:100%;">
+            套用座標軸範圍
+          </button>
+        </div>
+      </div>
+
+      <!-- Axis Intersection Point (X, Y) -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+        <div class="card-title-row flex items-center justify-between">
+          <h2 class="card-title text-sm font-bold text-slate-800">X / Y 軸相交點 (原點)</h2>
+          <button id="btn-reset-axis-origin" type="button" class="btn btn-secondary text-xs text-blue-600 hover:text-blue-800 font-medium cursor-pointer">重設 (8000, 0)</button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div class="grid-2 grid grid-cols-2 gap-2" style="margin-bottom:10px;">
+            <div>
+              <label for="input-origin-x" class="field-label block font-medium text-slate-600 mb-1">相交 X 值</label>
+              <input id="input-origin-x" type="number" step="any" placeholder="8000" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+            </div>
+            <div>
+              <label for="input-origin-y" class="field-label block font-medium text-slate-600 mb-1">相交 Y 值</label>
+              <input id="input-origin-y" type="number" step="any" placeholder="0" class="input-control w-full px-2.5 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg font-mono" />
+            </div>
+          </div>
+
+          <button id="btn-apply-axis-origin" type="button" class="btn btn-dark w-full py-1.5 px-3 text-xs sm:text-sm font-semibold rounded-lg bg-slate-800 hover:bg-slate-900 text-white transition cursor-pointer" style="width:100%;">
+            套用軸相交點
+          </button>
+        </div>
+      </div>
+
+      <!-- Quartiles (Q1, Q2, Q3) -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+        <div class="card-title-row flex items-center justify-between">
+          <h2 class="card-title text-sm font-bold text-slate-800">四分位數輔助線 (Q1, Q2, Q3)</h2>
+          <button id="btn-clear-q" type="button" class="btn btn-secondary text-xs text-slate-500 hover:text-rose-600 font-medium cursor-pointer">清除全部</button>
+        </div>
+
+        <div class="grid-3 grid grid-cols-3 gap-2">
+          <button id="btn-q1" type="button" class="q-btn q-btn-1 py-2 px-2 rounded-lg text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition cursor-pointer">
+            Q1 (25%)
+          </button>
+          <button id="btn-q2" type="button" class="q-btn q-btn-2 py-2 px-2 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-800 border border-red-300 transition cursor-pointer">
+            Q2 (50%)
+          </button>
+          <button id="btn-q3" type="button" class="q-btn q-btn-3 py-2 px-2 rounded-lg text-xs font-bold bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-300 transition cursor-pointer">
+            Q3 (75%)
+          </button>
+        </div>
+
+        <div id="quartile-readout-list" class="space-y-1.5" style="margin-top:8px;">
+          <p class="text-xs text-slate-400">尚未啟用四分位數輔助線</p>
+        </div>
+      </div>
+
+      <!-- Custom Horizontal & Vertical Lines -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-3">
+        <div class="card-title-row flex items-center justify-between">
+          <h2 class="card-title text-sm font-bold text-slate-800">新增水平 / 垂直輔助線</h2>
+          <button id="btn-clear-custom" type="button" class="btn btn-secondary text-xs text-slate-500 hover:text-rose-600 font-medium cursor-pointer">清除自訂線</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input id="input-h-val" type="number" step="any" placeholder="Y 值 (如 30)" class="input-control flex-1 px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-lg" />
+          <button id="btn-add-h" type="button" class="btn btn-success px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition cursor-pointer shrink-0">
+            + 水平線
+          </button>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <input id="input-v-val" type="number" step="any" placeholder="X 值 (如 15950)" class="input-control flex-1 px-2.5 py-1.5 text-xs sm:text-sm border border-slate-300 rounded-lg" />
+          <button id="btn-add-v" type="button" class="btn btn-primary px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition cursor-pointer shrink-0">
+            + 垂直線
+          </button>
+        </div>
+
+        <div id="custom-lines-list" class="space-y-1.5 max-h-36 overflow-y-auto" style="margin-top:8px;"></div>
+      </div>
+
+      <!-- Font Size Quick Panel -->
+      <div class="card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200 space-y-2">
+        <div class="card-title-row flex items-center justify-between">
+          <h2 class="card-title text-sm font-bold text-slate-800">字型大小微調</h2>
+          <span class="card-hint text-[11px] text-slate-400">懸停圖表文字按 +/-</span>
+        </div>
+
+        <div class="space-y-1.5 text-xs">
+          <div class="font-row flex items-center justify-between bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-slate-600">1. 圖表標題</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button onclick="changeFontSizeGroup('title', -1)" type="button" class="font-mini-btn">-</button>
+              <span id="lbl-size-title" style="width:34px;text-align:center;font-family:monospace;font-size:11px;">32px</span>
+              <button onclick="changeFontSizeGroup('title', 1)" type="button" class="font-mini-btn">+</button>
+            </div>
+          </div>
+
+          <div class="font-row flex items-center justify-between bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-slate-600">2. Y軸標題</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button onclick="changeFontSizeGroup('yTitle', -1)" type="button" class="font-mini-btn">-</button>
+              <span id="lbl-size-yTitle" style="width:34px;text-align:center;font-family:monospace;font-size:11px;">24px</span>
+              <button onclick="changeFontSizeGroup('yTitle', 1)" type="button" class="font-mini-btn">+</button>
+            </div>
+          </div>
+
+          <div class="font-row flex items-center justify-between bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-slate-600">3. X軸標題</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button onclick="changeFontSizeGroup('xTitle', -1)" type="button" class="font-mini-btn">-</button>
+              <span id="lbl-size-xTitle" style="width:34px;text-align:center;font-family:monospace;font-size:11px;">24px</span>
+              <button onclick="changeFontSizeGroup('xTitle', 1)" type="button" class="font-mini-btn">+</button>
+            </div>
+          </div>
+
+          <div class="font-row flex items-center justify-between bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-slate-600">4. Y軸刻度數字</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button onclick="changeFontSizeGroup('yLabels', -1)" type="button" class="font-mini-btn">-</button>
+              <span id="lbl-size-yLabels" style="width:34px;text-align:center;font-family:monospace;font-size:11px;">15px</span>
+              <button onclick="changeFontSizeGroup('yLabels', 1)" type="button" class="font-mini-btn">+</button>
+            </div>
+          </div>
+
+          <div class="font-row flex items-center justify-between bg-slate-50 p-1.5 rounded-lg">
+            <span class="text-slate-600">5. X軸刻度數字</span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <button onclick="changeFontSizeGroup('xLabels', -1)" type="button" class="font-mini-btn">-</button>
+              <span id="lbl-size-xLabels" style="width:34px;text-align:center;font-family:monospace;font-size:11px;">15px</span>
+              <button onclick="changeFontSizeGroup('xLabels', 1)" type="button" class="font-mini-btn">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Center Graph Canvas Area -->
+    <section class="graph-card lg:col-span-6 bg-white rounded-xl shadow-sm border border-slate-200 p-2 sm:p-4">
+      <div class="svg-container w-full overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <svg id="main-graph" viewBox="0 0 960 760" class="w-full h-auto block">
+          <!-- Background -->
+          <rect x="0" y="0" width="960" height="760" fill="#ffffff" />
+
+          <!-- Grid Lines & Axes -->
+          <g id="grid-lines"></g>
+
+          <!-- Axis Tick Marks & Labels -->
+          <g id="y-labels-group"></g>
+          <g id="x-labels-group"></g>
+
+          <!-- Quartile Lines -->
+          <g id="quartiles-group"></g>
+
+          <!-- Custom Reference Lines -->
+          <g id="custom-lines-group"></g>
+
+          <!-- Cumulative Frequency Polygon (No fill under curve) -->
+          <g id="polygon-group">
+            <polyline id="polygon-line" fill="none" stroke="#1d4ed8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+
+          <!-- Draggable Graph Title -->
+          <g id="graph-title-group" class="font-group-hoverable cursor-grab active:cursor-grabbing" data-group="title">
+            <text id="graph-title-text" x="480" y="52" text-anchor="middle" font-weight="700" fill="#0f172a" font-size="32">60個住宅單位每月租金</text>
+          </g>
+
+          <!-- Draggable Y-Axis Title (Centered vertically along Y-axis on the left) -->
+          <g id="y-title-group" class="font-group-hoverable cursor-grab active:cursor-grabbing" data-group="yTitle">
+            <text id="y-axis-title-text" x="42" y="380" text-anchor="middle" dominant-baseline="middle" font-weight="700" fill="#0f172a" font-size="24">
+              <tspan x="42" dy="0">累</tspan>
+              <tspan x="42" dy="1.2em">積</tspan>
+              <tspan x="42" dy="1.2em">頻</tspan>
+              <tspan x="42" dy="1.2em">數</tspan>
+            </text>
+          </g>
+
+          <!-- Draggable X-Axis Title (Centered horizontally below X-axis) -->
+          <g id="x-title-group" class="font-group-hoverable cursor-grab active:cursor-grabbing" data-group="xTitle">
+            <text id="x-axis-title-text" x="470" y="730" text-anchor="middle" font-weight="700" fill="#0f172a" font-size="24">租金少於 (元)</text>
+          </g>
+
+          <!-- Hover Font Size Control Pill Layer -->
+          <g id="hover-font-controls"></g>
+
+          <!-- Live Crosshair HUD -->
+          <g id="hud-crosshair" opacity="0" pointer-events="none">
+            <line id="hud-hline" x1="120" y1="0" x2="820" y2="0" stroke="#64748b" stroke-width="1" stroke-dasharray="3,3" />
+            <line id="hud-vline" x1="0" y1="90" x2="0" y2="670" stroke="#64748b" stroke-width="1" stroke-dasharray="3,3" />
+            <circle id="hud-dot" cx="0" cy="0" r="4" fill="#0f172a" stroke="#ffffff" stroke-width="1.5" />
+            <rect id="hud-badge" x="0" y="0" width="160" height="22" rx="4" fill="#0f172a" opacity="0.9" />
+            <text id="hud-badge-text" x="0" y="0" fill="#ffffff" font-size="11" font-family="monospace"></text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <!-- Right Sidebar Direct Coordinate Data Editor -->
+    <aside class="right-data-panel lg:col-span-3 card bg-white rounded-xl p-3.5 shadow-sm border border-slate-200">
+      <div class="card-title-row">
+        <h2 class="card-title">座標數據輸入 (X, Y)</h2>
+        <button id="btn-sidebar-add-row" type="button" class="btn btn-success" style="padding:4px 9px;font-size:12px;">+ 新增點</button>
+      </div>
+      <p class="card-hint" style="margin-bottom:8px;">直接修改下方 X / Y 數值，圖表會即時更新。</p>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:28px;">#</th>
+              <th>X 座標</th>
+              <th>Y 座標</th>
+              <th style="width:34px;text-align:center;">刪</th>
+            </tr>
+          </thead>
+          <tbody id="sidebar-data-tbody"></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="btn-sidebar-apply-data" type="button" class="btn btn-primary" style="flex:1;font-size:12px;">立即更新圖表</button>
+        <button id="btn-sidebar-reset-data" type="button" class="btn btn-secondary" style="font-size:12px;">預設數據</button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Titles Editor Modal -->
+  <div id="data-editor-modal" class="modal-backdrop fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="modal-panel bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="modal-head px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="card-title text-base font-bold text-slate-900">修改圖表與座標軸標題</h3>
+        <button id="btn-close-modal" type="button" class="btn btn-secondary text-slate-400 hover:text-slate-700 text-xl font-bold leading-none px-1 cursor-pointer">&times;</button>
+      </div>
+
+      <div class="modal-body p-5 overflow-y-auto space-y-4">
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+          <div>
+            <label for="edit-graph-title" class="field-label block text-xs font-semibold text-slate-600 mb-1">圖表標題</label>
+            <input id="edit-graph-title" type="text" class="input-control w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label for="edit-y-title" class="field-label block text-xs font-semibold text-slate-600 mb-1">Y軸標題</label>
+            <input id="edit-y-title" type="text" class="input-control w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label for="edit-x-title" class="field-label block text-xs font-semibold text-slate-600 mb-1">X軸標題</label>
+            <input id="edit-x-title" type="text" class="input-control w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
+        <button id="btn-cancel-modal" type="button" class="btn btn-secondary px-4 py-1.5 text-sm font-medium rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 cursor-pointer">
+          取消
+        </button>
+        <button id="btn-save-data" type="button" class="btn btn-primary px-4 py-1.5 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer">
+          儲存並更新標題
+        </button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- end app-shell -->
+
+  <!-- JavaScript App Logic -->
+  <script>
+    const defaultPoints = [
+      { x: 9950, y: 0 },
+      { x: 11950, y: 5 },
+      { x: 13950, y: 16 },
+      { x: 15950, y: 33 },
+      { x: 17950, y: 51 },
+      { x: 19950, y: 60 }
+    ];
+
+    const defaultFontSizes = {
+      title: 32,
+      yTitle: 24,
+      xTitle: 24,
+      yLabels: 15,
+      xLabels: 15
+    };
+
+    const defaultTitlePositions = {
+      title: { x: 480, y: 52 },
+      yTitle: { x: 42, y: 380 },
+      xTitle: { x: 470, y: 730 }
+    };
+
+    const ORIGIN_X = 120;
+    const ORIGIN_Y = 670;
+    const GRID_WIDTH = 700;
+    const GRID_HEIGHT = 580;
+    const CELL_PX = 10;
+
+    let MIN_X = 8000;
+    let MAX_X = 22000;
+    let MIN_Y = 0;
+    let MAX_Y = 65;
+    let SCALE_X = GRID_WIDTH / (MAX_X - MIN_X);
+    let SCALE_Y = GRID_HEIGHT / (MAX_Y - MIN_Y);
+
+    const state = {
+      showPoints: false,
+      snapToNearestGrid: true,
+      currentN: 60,
+      yInterval: "10",
+      xInterval: "points",
+      gridIntervals: {
+        xMajor: null,
+        xMinor: null,
+        yMajor: null,
+        yMinor: null
+      },
+      axisRange: { xMin: null, xMax: null, yMin: null, yMax: null },
+      axisOrigin: { x: 8000, y: 0 },
+      fontSizes: JSON.parse(JSON.stringify(defaultFontSizes)),
+      texts: {
+        title: "60個住宅單位每月租金",
+        yTitle: "累積頻數",
+        xTitle: "租金少於 (元)"
+      },
+      titlePos: JSON.parse(JSON.stringify(defaultTitlePositions)),
+      dataPoints: JSON.parse(JSON.stringify(defaultPoints)),
+      quartilesActive: { q1: false, q2: false, q3: false },
+      customLines: []
+    };
+
+    function getPoints() {
+      return Array.isArray(state.dataPoints) ? state.dataPoints : defaultPoints;
+    }
+
+    function getXUnitsPerCell() {
+      const pts = getPoints();
+      const totalCells = GRID_WIDTH / CELL_PX;
+      if (pts.length >= 2) {
+        const minX = Math.min(...pts.map(p => p.x));
+        const maxX = Math.max(...pts.map(p => p.x));
+        const span = Math.max(2000, maxX - minX);
+        const rawStep = (span * 1.25) / totalCells;
+        const niceSteps = [50, 100, 200, 250, 500, 1000, 2000, 5000];
+        for (const step of niceSteps) {
+          if (step >= rawStep) return step;
+        }
+        return Math.ceil(rawStep / 500) * 500;
+      }
+      return 200;
+    }
+
+    function xToPx(xVal) {
+      const snappedX = ORIGIN_X + (xVal - MIN_X) * SCALE_X;
+      return Number(snappedX.toFixed(4));
+    }
+
+    function yToPx(yVal) {
+      const snappedY = ORIGIN_Y - (yVal - MIN_Y) * SCALE_Y;
+      return Number(snappedY.toFixed(4));
+    }
+
+    function snapValToGrid(val, step) {
+      if (!step || step <= 0 || isNaN(val)) return val;
+      return Number((Math.round(val / step) * step).toFixed(6));
+    }
+
+    // Map a data point to the nearest grid intersection while keeping its original label values
+    function getPlottedPoint(pt) {
+      if (!state.snapToNearestGrid) {
+        return {
+          plotX: pt.x,
+          plotY: pt.y,
+          labelX: pt.x,
+          labelY: pt.y
+        };
+      }
+      const { xMinorStep, yMinorStep } = getEffectiveGridSteps();
+      return {
+        plotX: snapValToGrid(pt.x, xMinorStep),
+        plotY: snapValToGrid(pt.y, yMinorStep),
+        labelX: pt.x,
+        labelY: pt.y
+      };
+    }
+
+    function syncAxisRangeInputs() {
+      const xMinEl = document.getElementById('input-x-min');
+      const xMaxEl = document.getElementById('input-x-max');
+      const yMinEl = document.getElementById('input-y-min');
+      const yMaxEl = document.getElementById('input-y-max');
+      if (xMinEl) xMinEl.value = state.axisRange.xMin !== null ? state.axisRange.xMin : '';
+      if (xMaxEl) xMaxEl.value = state.axisRange.xMax !== null ? state.axisRange.xMax : '';
+      if (yMinEl) yMinEl.value = state.axisRange.yMin !== null ? state.axisRange.yMin : '';
+      if (yMaxEl) yMaxEl.value = state.axisRange.yMax !== null ? state.axisRange.yMax : '';
+
+      const originXEl = document.getElementById('input-origin-x');
+      const originYEl = document.getElementById('input-origin-y');
+      if (originXEl) originXEl.value = state.axisOrigin.x !== null && !isNaN(state.axisOrigin.x) ? state.axisOrigin.x : 8000;
+      if (originYEl) originYEl.value = state.axisOrigin.y !== null && !isNaN(state.axisOrigin.y) ? state.axisOrigin.y : 0;
+    }
+
+    function getYUnitsPerCell() {
+      const pts = getPoints();
+      const totalCells = GRID_HEIGHT / CELL_PX;
+      const maxDataY = pts.length > 0 ? Math.max(...pts.map(p => p.y)) : 60;
+      const targetMaxY = Math.max(10, maxDataY * 1.05, maxDataY + 2);
+      const rawStep = targetMaxY / totalCells;
+      const niceSteps = [0.5, 1, 2, 5, 10, 20, 25, 50, 100];
+      for (const step of niceSteps) {
+        if (step >= rawStep) {
+          return step;
+        }
+      }
+      return Math.ceil(rawStep / 5) * 5;
+    }
+
+    function recalculateScales() {
+      const pts = getPoints();
+      const xCells = GRID_WIDTH / CELL_PX;
+      const yCells = GRID_HEIGHT / CELL_PX;
+
+      const customXMin = state.axisRange.xMin;
+      const customXMax = state.axisRange.xMax;
+      const customYMin = state.axisRange.yMin;
+      const customYMax = state.axisRange.yMax;
+      const originXVal = state.axisOrigin.x !== null && !isNaN(state.axisOrigin.x) ? state.axisOrigin.x : 8000;
+      const originYVal = state.axisOrigin.y !== null && !isNaN(state.axisOrigin.y) ? state.axisOrigin.y : 0;
+
+      if (customXMin !== null && customXMax !== null && !isNaN(customXMin) && !isNaN(customXMax) && customXMax > customXMin) {
+        MIN_X = customXMin;
+        MAX_X = customXMax;
+        SCALE_X = GRID_WIDTH / (MAX_X - MIN_X);
+      } else {
+        // Align horizontal step to exact integer pixels per grid cell so points and grid lines match cleanly
+        const minDataX = pts.length > 0 ? Math.min(...pts.map(p => p.x), originXVal) : originXVal;
+        const maxDataX = pts.length > 0 ? Math.max(...pts.map(p => p.x)) : 19950;
+        const span = Math.max(2000, maxDataX - minDataX);
+        const rawStep = (span * 1.2) / xCells;
+        const niceSteps = [50, 100, 200, 250, 500, 1000, 2000];
+        const xStepPerCell = niceSteps.find(s => s >= rawStep) || Math.ceil(rawStep / 500) * 500;
+
+        MIN_X = originXVal;
+        MAX_X = Math.max(MIN_X + xCells * xStepPerCell, Math.ceil((maxDataX + xStepPerCell * 2 - MIN_X) / xStepPerCell) * xStepPerCell + MIN_X);
+        if (MAX_X - MIN_X > xCells * xStepPerCell) {
+          const fittedStep = (MAX_X - MIN_X) / xCells;
+          SCALE_X = GRID_WIDTH / (fittedStep * xCells);
+        } else {
+          MAX_X = MIN_X + xCells * xStepPerCell;
+          SCALE_X = GRID_WIDTH / (MAX_X - MIN_X);
+        }
+      }
+
+      if (customYMin !== null && customYMax !== null && !isNaN(customYMin) && !isNaN(customYMax) && customYMax > customYMin) {
+        MIN_Y = customYMin;
+        MAX_Y = customYMax;
+        SCALE_Y = GRID_HEIGHT / (MAX_Y - MIN_Y);
+      } else {
+        const yStepPerCell = getYUnitsPerCell();
+        const maxDataY = pts.length > 0 ? Math.max(...pts.map(p => p.y), originYVal) : 60;
+        MIN_Y = originYVal;
+        const spanY = Math.max(10, (maxDataY - MIN_Y) * 1.05, (maxDataY - MIN_Y) + 2);
+        const neededCells = Math.max(10, Math.min(yCells, Math.ceil(spanY / yStepPerCell)));
+        MAX_Y = MIN_Y + neededCells * yStepPerCell;
+        SCALE_Y = GRID_HEIGHT / (MAX_Y - MIN_Y);
+      }
+
+      const badge = document.getElementById('current-n-badge');
+      const maxPtY = pts.length > 0 ? Math.max(...pts.map(p => p.y)) : state.currentN;
+      state.currentN = maxPtY > 0 ? maxPtY : 60;
+      if (badge) badge.textContent = `N = ${state.currentN}`;
+      syncAxisRangeInputs();
+    }
+
+    function getNiceSubStep(span, targetLines) {
+      const rough = span / Math.max(4, targetLines);
+      const pow10 = Math.pow(10, Math.floor(Math.log10(rough)));
+      const norm = rough / pow10;
+      let mult = 1;
+      if (norm <= 1) mult = 1;
+      else if (norm <= 2) mult = 2;
+      else if (norm <= 5) mult = 5;
+      else mult = 10;
+      return Number((mult * pow10).toFixed(6));
+    }
+
+    function getEffectiveGridSteps() {
+      const xSpan = Math.max(1e-6, MAX_X - MIN_X);
+      const ySpan = Math.max(1e-6, MAX_Y - MIN_Y);
+
+      const yMajorStep = state.gridIntervals.yMajor && state.gridIntervals.yMajor > 0
+        ? state.gridIntervals.yMajor
+        : Math.max(0.5, parseFloat(state.yInterval) || getNiceSubStep(ySpan, 7));
+
+      const yMinorStep = state.gridIntervals.yMinor && state.gridIntervals.yMinor > 0
+        ? state.gridIntervals.yMinor
+        : getNiceSubStep(ySpan, 58);
+
+      const xMajorStep = state.gridIntervals.xMajor && state.gridIntervals.xMajor > 0
+        ? state.gridIntervals.xMajor
+        : (state.xInterval === 'points'
+          ? getNiceSubStep(xSpan, 7)
+          : Math.max(1, parseFloat(state.xInterval) || getNiceSubStep(xSpan, 7)));
+
+      const xMinorStep = state.gridIntervals.xMinor && state.gridIntervals.xMinor > 0
+        ? state.gridIntervals.xMinor
+        : getNiceSubStep(xSpan, 70);
+
+      return { xMajorStep, xMinorStep, yMajorStep, yMinorStep };
+    }
+
+    function renderGrid() {
+      recalculateScales();
+
+      const gridGroup = document.getElementById('grid-lines');
+      if (!gridGroup) return;
+
+      let html = '';
+      const topY = ORIGIN_Y - GRID_HEIGHT;
+      const rightX = ORIGIN_X + GRID_WIDTH;
+      const { xMajorStep, xMinorStep, yMajorStep, yMinorStep } = getEffectiveGridSteps();
+      const yMidStep = Number((yMajorStep / 2).toFixed(6));
+      const xMidStep = Number((xMajorStep / 2).toFixed(6));
+
+      const isNearStep = (value, step) => {
+        if (!step || step <= 0) return false;
+        const nearest = Math.round(value / step) * step;
+        return Math.abs(value - nearest) <= step * 1e-3;
+      };
+
+      // Vertical grid lines (minor -> mid -> major) anchored to MIN_X (axis intersection X)
+      for (let v = MIN_X; v <= MAX_X + xMinorStep * 1e-4; v += xMinorStep) {
+        const cleanV = Number(v.toFixed(6));
+        const px = Number(xToPx(cleanV).toFixed(2));
+        if (px < ORIGIN_X - 0.5 || px > rightX + 0.5) continue;
+
+        const offsetFromOrigin = Math.abs(cleanV - MIN_X);
+        const isMajor = isNearStep(offsetFromOrigin, xMajorStep);
+        const isMid = !isMajor && isNearStep(offsetFromOrigin, xMidStep);
+
+        const stroke = isMajor ? '#475569' : (isMid ? '#94a3b8' : '#e2e8f0');
+        const strokeWidth = isMajor ? '1.3' : (isMid ? '0.9' : '0.7');
+
+        html += `<line x1="${px}" y1="${topY}" x2="${px}" y2="${ORIGIN_Y}" stroke="${stroke}" stroke-width="${strokeWidth}" />`;
+      }
+
+      // Horizontal grid lines (minor -> mid -> major) anchored to MIN_Y (axis intersection Y)
+      for (let v = MIN_Y; v <= MAX_Y + yMinorStep * 1e-4; v += yMinorStep) {
+        const cleanV = Number(v.toFixed(6));
+        const py = Number(yToPx(cleanV).toFixed(2));
+        if (py < topY - 0.5 || py > ORIGIN_Y + 0.5) continue;
+
+        const offsetFromOrigin = Math.abs(cleanV - MIN_Y);
+        const isMajor = isNearStep(offsetFromOrigin, yMajorStep);
+        const isMid = !isMajor && isNearStep(offsetFromOrigin, yMidStep);
+
+        const stroke = isMajor ? '#475569' : (isMid ? '#94a3b8' : '#e2e8f0');
+        const strokeWidth = isMajor ? '1.3' : (isMid ? '0.9' : '0.7');
+
+        html += `<line x1="${ORIGIN_X}" y1="${py}" x2="${rightX}" y2="${py}" stroke="${stroke}" stroke-width="${strokeWidth}" />`;
+      }
+
+      // Primary X and Y axes intersecting at (MIN_X, MIN_Y)
+      const axisX = Number(Math.min(rightX, Math.max(ORIGIN_X, xToPx(MIN_X))).toFixed(2));
+      const axisY = Number(Math.min(ORIGIN_Y, Math.max(topY, yToPx(MIN_Y))).toFixed(2));
+      html += `<line x1="${ORIGIN_X}" y1="${axisY}" x2="${rightX}" y2="${axisY}" stroke="#0f172a" stroke-width="2" />`;
+      html += `<line x1="${axisX}" y1="${topY}" x2="${axisX}" y2="${ORIGIN_Y}" stroke="#0f172a" stroke-width="2" />`;
+
+      gridGroup.innerHTML = html;
+    }
+
+    function renderAxisLabels() {
+      const yLabelsGroup = document.getElementById('y-labels-group');
+      const xLabelsGroup = document.getElementById('x-labels-group');
+      if (!yLabelsGroup || !xLabelsGroup) return;
+
+      const { xMajorStep, yMajorStep } = getEffectiveGridSteps();
+      const yLabelStep = Math.max(0.5, parseFloat(state.yInterval) || yMajorStep);
+      const topY = ORIGIN_Y - GRID_HEIGHT;
+      const rightX = ORIGIN_X + GRID_WIDTH;
+      let yHtml = '';
+
+      // Align Y ticks to major gridlines anchored at MIN_Y and show label at chosen Y label interval
+      for (let v = MIN_Y; v <= MAX_Y + yMajorStep * 1e-4; v += yMajorStep) {
+        const cleanV = Number(v.toFixed(4));
+        const py = Number(yToPx(cleanV).toFixed(2));
+        if (py < topY - 0.5 || py > ORIGIN_Y + 0.5) continue;
+
+        const offsetY = Math.abs(cleanV - MIN_Y);
+        const showLabel = Math.abs(offsetY - Math.round(offsetY / yLabelStep) * yLabelStep) <= yLabelStep * 1e-3;
+        yHtml += `
+          <line x1="${ORIGIN_X - 6}" y1="${py}" x2="${ORIGIN_X}" y2="${py}" stroke="#0f172a" stroke-width="1.6" />
+          ${showLabel ? `<text class="y-tick-label" x="${ORIGIN_X - 10}" y="${py + 4}" text-anchor="end" fill="#0f172a" font-weight="600" font-size="${state.fontSizes.yLabels}">${Number(cleanV.toFixed(2))}</text>` : ''}
+        `;
+      }
+      yLabelsGroup.innerHTML = yHtml;
+
+      let xHtml = '';
+
+      if (state.xInterval === 'points') {
+        const pts = getPoints();
+        pts.forEach(pt => {
+          const mapped = getPlottedPoint(pt);
+          const px = Number(xToPx(mapped.plotX).toFixed(2));
+          if (px < ORIGIN_X - 0.5 || px > rightX + 0.5) return;
+          xHtml += `
+            <line x1="${px}" y1="${ORIGIN_Y}" x2="${px}" y2="${ORIGIN_Y + 6}" stroke="#0f172a" stroke-width="1.6" />
+            <text class="x-tick-label" x="${px}" y="${ORIGIN_Y + 22}" text-anchor="middle" fill="#0f172a" font-weight="600" font-size="${state.fontSizes.xLabels}">${mapped.labelX}</text>
+          `;
+        });
+      } else {
+        const xLabelStep = Math.max(1, parseFloat(state.xInterval) || xMajorStep);
+        for (let xVal = MIN_X; xVal <= MAX_X + xMajorStep * 1e-4; xVal += xMajorStep) {
+          const cleanX = Number(xVal.toFixed(4));
+          const px = Number(xToPx(cleanX).toFixed(2));
+          if (px < ORIGIN_X - 0.5 || px > rightX + 0.5) continue;
+
+          const offsetX = Math.abs(cleanX - MIN_X);
+          const showLabel = Math.abs(offsetX - Math.round(offsetX / xLabelStep) * xLabelStep) <= xLabelStep * 1e-3;
+          let displayLabel = Number(cleanX.toFixed(2));
+          if (state.snapToNearestGrid) {
+            const matchedPt = getPoints().find(p => Math.abs(getPlottedPoint(p).plotX - cleanX) <= xMajorStep * 0.25);
+            if (matchedPt) displayLabel = matchedPt.x;
+          }
+          xHtml += `
+            <line x1="${px}" y1="${ORIGIN_Y}" x2="${px}" y2="${ORIGIN_Y + 6}" stroke="#0f172a" stroke-width="1.6" />
+            ${showLabel ? `<text class="x-tick-label" x="${px}" y="${ORIGIN_Y + 22}" text-anchor="middle" fill="#0f172a" font-weight="600" font-size="${state.fontSizes.xLabels}">${displayLabel}</text>` : ''}
+          `;
+        }
+      }
+      xLabelsGroup.innerHTML = xHtml;
+    }
+
+    function renderPolygon() {
+      const polyline = document.getElementById('polygon-line');
+      const polygonGroup = document.getElementById('polygon-group');
+      if (!polyline || !polygonGroup) return;
+
+      const pts = getPoints().map(getPlottedPoint);
+      const coords = pts.map(p => `${Number(xToPx(p.plotX).toFixed(2))},${Number(yToPx(p.plotY).toFixed(2))}`).join(' ');
+      polyline.setAttribute('points', coords);
+
+      polygonGroup.querySelectorAll('.data-point-marker').forEach(el => el.remove());
+
+      if (state.showPoints) {
+        pts.forEach(p => {
+          const cx = Number(xToPx(p.plotX).toFixed(2));
+          const cy = Number(yToPx(p.plotY).toFixed(2));
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('class', 'data-point-marker');
+          circle.setAttribute('cx', cx);
+          circle.setAttribute('cy', cy);
+          circle.setAttribute('r', '4.5');
+          circle.setAttribute('fill', '#1d4ed8');
+          circle.setAttribute('stroke', '#ffffff');
+          circle.setAttribute('stroke-width', '1.5');
+          polygonGroup.appendChild(circle);
+        });
+      }
+    }
+
+    // Interpolate X value along the cumulative frequency polygon for a given Y value
+    function getXFromY(targetY) {
+      const pts = [...getPoints()].map(getPlottedPoint).sort((a, b) => a.plotY - b.plotY);
+      if (pts.length === 0) return MIN_X;
+      if (targetY <= pts[0].plotY) return pts[0].plotX;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        if (targetY >= p1.plotY && targetY <= p2.plotY) {
+          if (p2.plotY === p1.plotY) return p1.plotX;
+          const ratio = (targetY - p1.plotY) / (p2.plotY - p1.plotY);
+          return p1.plotX + ratio * (p2.plotX - p1.plotX);
+        }
+      }
+      return pts[pts.length - 1].plotX;
+    }
+
+    // Render Q1 (25%), Q2 (50%), and Q3 (75%) quartile guide lines without numeric readouts
+    function renderQuartiles() {
+      const qGroup = document.getElementById('quartiles-group');
+      const listEl = document.getElementById('quartile-readout-list');
+      if (!qGroup) return;
+
+      const totalN = state.currentN || 60;
+      const defs = [
+        { key: 'q1', label: 'Q1 (25%)', ratio: 0.25, color: '#d97706' },
+        { key: 'q2', label: 'Q2 (50%)', ratio: 0.50, color: '#dc2626' },
+        { key: 'q3', label: 'Q3 (75%)', ratio: 0.75, color: '#7c3aed' }
+      ];
+
+      let svgHtml = '';
+      const activeItems = [];
+
+      defs.forEach(item => {
+        if (!state.quartilesActive[item.key]) return;
+        const yVal = totalN * item.ratio;
+        const xVal = getXFromY(yVal);
+        const py = Number(yToPx(yVal).toFixed(2));
+        const px = Number(xToPx(xVal).toFixed(2));
+
+        svgHtml += `
+          <line x1="${ORIGIN_X}" y1="${py}" x2="${px}" y2="${py}" stroke="${item.color}" stroke-width="1.8" stroke-dasharray="6,4" />
+          <line x1="${px}" y1="${py}" x2="${px}" y2="${ORIGIN_Y}" stroke="${item.color}" stroke-width="1.8" stroke-dasharray="6,4" />
+          <circle cx="${px}" cy="${py}" r="4" fill="${item.color}" stroke="#ffffff" stroke-width="1.5" />
+          <text x="${ORIGIN_X + 8}" y="${py - 5}" text-anchor="start" fill="${item.color}" font-size="12" font-weight="700">${item.label}</text>
+        `;
+        activeItems.push(`<div style="font-size:12px;color:${item.color};font-weight:600;">已顯示 ${item.label} 輔助線</div>`);
+      });
+
+      qGroup.innerHTML = svgHtml;
+
+      if (listEl) {
+        listEl.innerHTML = activeItems.length > 0
+          ? activeItems.join('')
+          : '<p style="font-size:12px;color:#94a3b8;margin:0;">尚未啟用四分位數輔助線</p>';
+      }
+    }
+
+    // Remove a custom reference line by id
+    function removeCustomLine(id) {
+      state.customLines = state.customLines.filter(line => line.id !== id);
+      renderCustomLines();
+    }
+
+    // Render user-added horizontal and vertical reference lines
+    function renderCustomLines() {
+      const group = document.getElementById('custom-lines-group');
+      const listEl = document.getElementById('custom-lines-list');
+      if (!group) return;
+
+      const topY = ORIGIN_Y - GRID_HEIGHT;
+      const rightX = ORIGIN_X + GRID_WIDTH;
+      let svgHtml = '';
+      let listHtml = '';
+
+      state.customLines.forEach(line => {
+        if (line.type === 'h') {
+          const py = Number(yToPx(line.value).toFixed(2));
+          svgHtml += `
+            <line x1="${ORIGIN_X}" y1="${py}" x2="${rightX}" y2="${py}" stroke="#059669" stroke-width="1.6" stroke-dasharray="5,3" />
+            <text x="${ORIGIN_X + 6}" y="${py - 4}" fill="#059669" font-size="11" font-weight="700">Y = ${line.value}</text>
+          `;
+          listHtml += `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#ecfdf5;border:1px solid #a7f3d0;padding:4px 8px;border-radius:6px;font-size:12px;">
+              <span style="color:#065f46;font-weight:600;">水平線 Y = ${line.value}</span>
+              <button type="button" onclick="removeCustomLine('${line.id}')" style="border:none;background:transparent;color:#dc2626;font-weight:700;cursor:pointer;">&times;</button>
+            </div>
+          `;
+        } else {
+          const px = Number(xToPx(line.value).toFixed(2));
+          svgHtml += `
+            <line x1="${px}" y1="${topY}" x2="${px}" y2="${ORIGIN_Y}" stroke="#4f46e5" stroke-width="1.6" stroke-dasharray="5,3" />
+            <text x="${px + 4}" y="${topY + 14}" fill="#4f46e5" font-size="11" font-weight="700">X = ${line.value}</text>
+          `;
+          listHtml += `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#eef2ff;border:1px solid #c7d2fe;padding:4px 8px;border-radius:6px;font-size:12px;">
+              <span style="color:#3730a3;font-weight:600;">垂直線 X = ${line.value}</span>
+              <button type="button" onclick="removeCustomLine('${line.id}')" style="border:none;background:transparent;color:#dc2626;font-weight:700;cursor:pointer;">&times;</button>
+            </div>
+          `;
+        }
+      });
+
+      group.innerHTML = svgHtml;
+      if (listEl) listEl.innerHTML = listHtml;
+    }
+
+    // Apply current text values and font sizes to SVG titles and labels
+    function applyFontSizes() {
+      const titleText = document.getElementById('graph-title-text');
+      if (titleText) {
+        titleText.textContent = state.texts.title || '';
+        titleText.setAttribute('font-size', state.fontSizes.title);
+      }
+
+      const yTitleText = document.getElementById('y-axis-title-text');
+      if (yTitleText) {
+        const chars = Array.from(state.texts.yTitle || '');
+        const baseX = state.titlePos.yTitle.x;
+        yTitleText.setAttribute('font-size', state.fontSizes.yTitle);
+        yTitleText.innerHTML = chars.map((ch, idx) =>
+          `<tspan x="${baseX}" dy="${idx === 0 ? '0' : '1.2em'}">${ch}</tspan>`
+        ).join('');
+      }
+
+      const xTitleText = document.getElementById('x-axis-title-text');
+      if (xTitleText) {
+        xTitleText.textContent = state.texts.xTitle || '';
+        xTitleText.setAttribute('font-size', state.fontSizes.xTitle);
+      }
+
+      document.querySelectorAll('.y-tick-label').forEach(el => {
+        el.setAttribute('font-size', state.fontSizes.yLabels);
+      });
+
+      document.querySelectorAll('.x-tick-label').forEach(el => {
+        el.setAttribute('font-size', state.fontSizes.xLabels);
+      });
+
+      ['title', 'yTitle', 'xTitle', 'yLabels', 'xLabels'].forEach(key => {
+        const lbl = document.getElementById(`lbl-size-${key}`);
+        if (lbl) lbl.textContent = `${state.fontSizes[key]}px`;
+      });
+    }
+
+    // Adjust font size for a target group by delta (+1 or -1)
+    function changeFontSizeGroup(groupKey, delta) {
+      if (!(groupKey in state.fontSizes)) return;
+      const nextSize = Math.min(64, Math.max(9, (state.fontSizes[groupKey] || 15) + delta));
+      state.fontSizes[groupKey] = nextSize;
+      applyFontSizes();
+    }
+
+    // Position draggable title elements according to state.titlePos
+    function applyTitlePositions() {
+      const titleText = document.getElementById('graph-title-text');
+      if (titleText) {
+        titleText.setAttribute('x', state.titlePos.title.x);
+        titleText.setAttribute('y', state.titlePos.title.y);
+      }
+
+      const yTitleText = document.getElementById('y-axis-title-text');
+      if (yTitleText) {
+        yTitleText.setAttribute('x', state.titlePos.yTitle.x);
+        yTitleText.setAttribute('y', state.titlePos.yTitle.y);
+        yTitleText.querySelectorAll('tspan').forEach(tspan => {
+          tspan.setAttribute('x', state.titlePos.yTitle.x);
+        });
+      }
+
+      const xTitleText = document.getElementById('x-axis-title-text');
+      if (xTitleText) {
+        xTitleText.setAttribute('x', state.titlePos.xTitle.x);
+        xTitleText.setAttribute('y', state.titlePos.xTitle.y);
+      }
+    }
+
+    // Convert client coordinates to SVG viewBox coordinates
+    function getSVGPoint(svgEl, clientX, clientY) {
+      const pt = svgEl.createSVGPoint();
+      pt.x = clientX;
+      pt.y = clientY;
+      const ctm = svgEl.getScreenCTM();
+      return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+    }
+
+    // Enable pointer dragging on title groups
+    function setupDragEvents() {
+      const svgEl = document.getElementById('main-graph');
+      if (!svgEl) return;
+
+      const dragMap = [
+        { elId: 'graph-title-group', key: 'title' },
+        { elId: 'y-title-group', key: 'yTitle' },
+        { elId: 'x-title-group', key: 'xTitle' }
+      ];
+
+      let activeDrag = null;
+
+      dragMap.forEach(({ elId, key }) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.addEventListener('pointerdown', (e) => {
+          if (e.target.closest('.hover-font-btn')) return;
+          e.preventDefault();
+          const svgPt = getSVGPoint(svgEl, e.clientX, e.clientY);
+          activeDrag = {
+            key,
+            startX: svgPt.x,
+            startY: svgPt.y,
+            origX: state.titlePos[key].x,
+            origY: state.titlePos[key].y
+          };
+        });
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (!activeDrag) return;
+        const svgPt = getSVGPoint(svgEl, e.clientX, e.clientY);
+        state.titlePos[activeDrag.key].x = Math.round(activeDrag.origX + (svgPt.x - activeDrag.startX));
+        state.titlePos[activeDrag.key].y = Math.round(activeDrag.origY + (svgPt.y - activeDrag.startY));
+        applyTitlePositions();
+      });
+
+      window.addEventListener('pointerup', () => {
+        activeDrag = null;
+      });
+    }
+
+    // Render floating +/- font buttons on hovering over graph title groups
+    function setupHoverFontControls() {
+      const svgEl = document.getElementById('main-graph');
+      const layer = document.getElementById('hover-font-controls');
+      if (!svgEl || !layer) return;
+
+      let hideTimeout = null;
+
+      function showControlsFor(groupEl) {
+        clearTimeout(hideTimeout);
+        const groupKey = groupEl.getAttribute('data-group');
+        if (!groupKey) return;
+
+        const bbox = groupEl.getBBox();
+        const boxX = Math.max(8, Math.min(860, bbox.x + bbox.width / 2 - 36));
+        const boxY = Math.max(8, bbox.y - 28);
+
+        layer.innerHTML = `
+          <g class="hover-font-pill" transform="translate(${boxX}, ${boxY})">
+            <rect x="0" y="0" width="72" height="22" rx="6" fill="#0f172a" opacity="0.92" />
+            <g class="hover-font-btn" data-action="dec" style="cursor:pointer;">
+              <rect x="2" y="2" width="22" height="18" rx="4" fill="#334155" />
+              <text x="13" y="15" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">-</text>
+            </g>
+            <text x="36" y="15" text-anchor="middle" fill="#e2e8f0" font-size="10" font-family="monospace">${state.fontSizes[groupKey]}</text>
+            <g class="hover-font-btn" data-action="inc" style="cursor:pointer;">
+              <rect x="48" y="2" width="22" height="18" rx="4" fill="#2563eb" />
+              <text x="59" y="15" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">+</text>
+            </g>
+          </g>
+        `;
+
+        layer.querySelectorAll('.hover-font-btn').forEach(btn => {
+          btn.addEventListener('pointerdown', (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault();
+            const delta = btn.getAttribute('data-action') === 'inc' ? 2 : -2;
+            changeFontSizeGroup(groupKey, delta);
+            showControlsFor(groupEl);
+          });
+        });
+      }
+
+      document.querySelectorAll('.font-group-hoverable').forEach(groupEl => {
+        groupEl.addEventListener('pointerenter', () => showControlsFor(groupEl));
+        groupEl.addEventListener('pointerleave', () => {
+          hideTimeout = setTimeout(() => {
+            if (!layer.matches(':hover')) layer.innerHTML = '';
+          }, 180);
+        });
+      });
+
+      layer.addEventListener('pointerenter', () => clearTimeout(hideTimeout));
+      layer.addEventListener('pointerleave', () => {
+        hideTimeout = setTimeout(() => {
+          layer.innerHTML = '';
+        }, 180);
+      });
+    }
+
+    // Update live crosshair and coordinate readout inside the graph bounds
+    function setupGraphHUD() {
+      const svgEl = document.getElementById('main-graph');
+      const hud = document.getElementById('hud-crosshair');
+      const hLine = document.getElementById('hud-hline');
+      const vLine = document.getElementById('hud-vline');
+      const dot = document.getElementById('hud-dot');
+      const badge = document.getElementById('hud-badge');
+      const badgeText = document.getElementById('hud-badge-text');
+      const readout = document.getElementById('live-readouts');
+      if (!svgEl || !hud) return;
+
+      const topY = ORIGIN_Y - GRID_HEIGHT;
+      const rightX = ORIGIN_X + GRID_WIDTH;
+
+      svgEl.addEventListener('pointermove', (e) => {
+        const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+        if (pt.x >= ORIGIN_X && pt.x <= rightX && pt.y >= topY && pt.y <= ORIGIN_Y) {
+          const xVal = MIN_X + (pt.x - ORIGIN_X) / SCALE_X;
+          const yVal = MIN_Y + (ORIGIN_Y - pt.y) / SCALE_Y;
+          const xDisplay = Number(xVal.toFixed(0));
+          const yDisplay = Number(yVal.toFixed(1));
+
+          hud.setAttribute('opacity', '1');
+          hLine.setAttribute('x1', ORIGIN_X);
+          hLine.setAttribute('x2', rightX);
+          hLine.setAttribute('y1', pt.y);
+          hLine.setAttribute('y2', pt.y);
+
+          vLine.setAttribute('x1', pt.x);
+          vLine.setAttribute('x2', pt.x);
+          vLine.setAttribute('y1', topY);
+          vLine.setAttribute('y2', ORIGIN_Y);
+
+          dot.setAttribute('cx', pt.x);
+          dot.setAttribute('cy', pt.y);
+
+          const bx = Math.min(rightX - 165, Math.max(ORIGIN_X + 6, pt.x + 10));
+          const by = Math.max(topY + 6, pt.y - 28);
+          badge.setAttribute('x', bx);
+          badge.setAttribute('y', by);
+          badgeText.setAttribute('x', bx + 8);
+          badgeText.setAttribute('y', by + 15);
+          badgeText.textContent = `X: ${xDisplay} | Y: ${yDisplay}`;
+
+          if (readout) readout.textContent = `X: ${xDisplay} | Y: ${yDisplay}`;
+        } else {
+          hud.setAttribute('opacity', '0');
+          if (readout) readout.textContent = 'X: -- | Y: --';
+        }
+      });
+
+      svgEl.addEventListener('pointerleave', () => {
+        hud.setAttribute('opacity', '0');
+        if (readout) readout.textContent = 'X: -- | Y: --';
+      });
+    }
+
+    function exportGraphAsPNG() {
+      const svgEl = document.getElementById('main-graph');
+      if (!svgEl) return;
+      try {
+        const serializer = new XMLSerializer();
+        const svgStr = serializer.serializeToString(svgEl);
+        const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1920;
+          canvas.height = 1520;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+
+          const pngUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = 'cumulative-frequency-graph.png';
+          link.href = pngUrl;
+          link.click();
+        };
+        img.src = url;
+      } catch (err) {
+        console.error('Failed to export PNG:', err);
+      }
+    }
+
+    function renderSidebarDataTable() {
+      const tbody = document.getElementById('sidebar-data-tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = state.dataPoints.map((pt, index) => `
+        <tr>
+          <td style="color:#64748b;font-weight:600;">${index + 1}</td>
+          <td><input type="number" step="any" class="sb-x-input" value="${pt.x}" /></td>
+          <td><input type="number" step="any" class="sb-y-input" value="${pt.y}" /></td>
+          <td style="text-align:center;">
+            <button type="button" class="del-row-btn" data-index="${index}">&times;</button>
+          </td>
+        </tr>
+      `).join('');
+
+      tbody.querySelectorAll('.del-row-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-index'));
+          if (state.dataPoints.length <= 2) return;
+          state.dataPoints.splice(idx, 1);
+          renderSidebarDataTable();
+          updateAll();
+        });
+      });
+
+      tbody.querySelectorAll('.sb-x-input, .sb-y-input').forEach(inp => {
+        inp.addEventListener('input', () => {
+          applySidebarDataInputs(false);
+        });
+      });
+    }
+
+    function applySidebarDataInputs(reRenderTable = true) {
+      const tbody = document.getElementById('sidebar-data-tbody');
+      if (!tbody) return;
+
+      const xInputs = tbody.querySelectorAll('.sb-x-input');
+      const yInputs = tbody.querySelectorAll('.sb-y-input');
+      const nextPoints = [];
+
+      for (let i = 0; i < xInputs.length; i++) {
+        const xVal = parseFloat(xInputs[i].value);
+        const yVal = parseFloat(yInputs[i].value);
+        if (!isNaN(xVal) && !isNaN(yVal)) {
+          nextPoints.push({ x: xVal, y: yVal });
+        }
+      }
+
+      if (nextPoints.length >= 1) {
+        state.dataPoints = nextPoints;
+        if (reRenderTable) renderSidebarDataTable();
+        updateAll();
+      }
+    }
+
+    function initEvents() {
+      const btnExportPng = document.getElementById('btn-export-png');
+      if (btnExportPng) {
+        btnExportPng.addEventListener('click', exportGraphAsPNG);
+      }
+
+      const selYInterval = document.getElementById('sel-y-interval');
+      if (selYInterval) {
+        selYInterval.value = state.yInterval;
+        selYInterval.addEventListener('change', (e) => {
+          state.yInterval = e.target.value;
+          renderAxisLabels();
+        });
+      }
+
+      const selXInterval = document.getElementById('sel-x-interval');
+      if (selXInterval) {
+        selXInterval.value = state.xInterval;
+        selXInterval.addEventListener('change', (e) => {
+          state.xInterval = e.target.value;
+          renderAxisLabels();
+        });
+      }
+
+      const bindGridIntervalInput = (inputId, key) => {
+        const el = document.getElementById(inputId);
+        if (!el) return;
+        el.addEventListener('input', () => {
+          const parsed = parseFloat(el.value);
+          state.gridIntervals[key] = !isNaN(parsed) && parsed > 0 ? parsed : null;
+          updateAll();
+        });
+      };
+
+      bindGridIntervalInput('input-y-major', 'yMajor');
+      bindGridIntervalInput('input-y-minor', 'yMinor');
+      bindGridIntervalInput('input-x-major', 'xMajor');
+      bindGridIntervalInput('input-x-minor', 'xMinor');
+
+      ['q1', 'q2', 'q3'].forEach((qKey, idx) => {
+        const btn = document.getElementById(`btn-${qKey}`);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          state.quartilesActive[qKey] = !state.quartilesActive[qKey];
+          btn.style.outline = state.quartilesActive[qKey] ? '2px solid #0f172a' : 'none';
+          renderQuartiles();
+        });
+      });
+
+      const btnClearQ = document.getElementById('btn-clear-q');
+      if (btnClearQ) {
+        btnClearQ.addEventListener('click', () => {
+          state.quartilesActive = { q1: false, q2: false, q3: false };
+          ['q1', 'q2', 'q3'].forEach(qKey => {
+            const btn = document.getElementById(`btn-${qKey}`);
+            if (btn) btn.style.outline = 'none';
+          });
+          renderQuartiles();
+        });
+      }
+
+      const btnAddH = document.getElementById('btn-add-h');
+      const btnAddV = document.getElementById('btn-add-v');
+      const btnClearCustom = document.getElementById('btn-clear-custom');
+
+      if (btnAddH) {
+        btnAddH.addEventListener('click', () => {
+          const val = parseFloat(document.getElementById('input-h-val')?.value);
+          if (!isNaN(val)) {
+            state.customLines.push({ id: `h-${Date.now()}`, type: 'h', value: val });
+            renderCustomLines();
+          }
+        });
+      }
+
+      if (btnAddV) {
+        btnAddV.addEventListener('click', () => {
+          const val = parseFloat(document.getElementById('input-v-val')?.value);
+          if (!isNaN(val)) {
+            state.customLines.push({ id: `v-${Date.now()}`, type: 'v', value: val });
+            renderCustomLines();
+          }
+        });
+      }
+
+      if (btnClearCustom) {
+        btnClearCustom.addEventListener('click', () => {
+          state.customLines = [];
+          renderCustomLines();
+        });
+      }
+
+      const modal = document.getElementById('data-editor-modal');
+      const btnOpenModal = document.getElementById('btn-open-data-editor');
+      const btnCloseModal = document.getElementById('btn-close-modal');
+      const btnCancelModal = document.getElementById('btn-cancel-modal');
+      const btnSaveData = document.getElementById('btn-save-data');
+
+      const closeModal = () => {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      if (btnOpenModal && modal) {
+        btnOpenModal.addEventListener('click', () => {
+          document.getElementById('edit-graph-title').value = state.texts.title || '';
+          document.getElementById('edit-y-title').value = state.texts.yTitle || '';
+          document.getElementById('edit-x-title').value = state.texts.xTitle || '';
+          modal.classList.add('is-open');
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        });
+      }
+
+      if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
+      if (btnCancelModal) btnCancelModal.addEventListener('click', closeModal);
+      if (btnSaveData) {
+        btnSaveData.addEventListener('click', () => {
+          state.texts.title = document.getElementById('edit-graph-title')?.value || state.texts.title;
+          state.texts.yTitle = document.getElementById('edit-y-title')?.value || state.texts.yTitle;
+          state.texts.xTitle = document.getElementById('edit-x-title')?.value || state.texts.xTitle;
+          applyFontSizes();
+          applyTitlePositions();
+          closeModal();
+        });
+      }
+
+      const btnSidebarAddRow = document.getElementById('btn-sidebar-add-row');
+      const btnSidebarApplyData = document.getElementById('btn-sidebar-apply-data');
+      const btnSidebarResetData = document.getElementById('btn-sidebar-reset-data');
+
+      if (btnSidebarAddRow) {
+        btnSidebarAddRow.addEventListener('click', () => {
+          const lastPt = state.dataPoints[state.dataPoints.length - 1] || { x: 19950, y: 60 };
+          state.dataPoints.push({ x: Number(lastPt.x) + 2000, y: Number(lastPt.y) });
+          renderSidebarDataTable();
+          updateAll();
+        });
+      }
+
+      if (btnSidebarApplyData) {
+        btnSidebarApplyData.addEventListener('click', () => {
+          applySidebarDataInputs(true);
+        });
+      }
+
+      if (btnSidebarResetData) {
+        btnSidebarResetData.addEventListener('click', () => {
+          state.dataPoints = JSON.parse(JSON.stringify(defaultPoints));
+          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          renderSidebarDataTable();
+          updateAll();
+        });
+      }
+
+      const btnResetTitlePos = document.getElementById('btn-reset-title-pos');
+      if (btnResetTitlePos) {
+        btnResetTitlePos.addEventListener('click', () => {
+          state.titlePos = JSON.parse(JSON.stringify(defaultTitlePositions));
+          applyTitlePositions();
+        });
+      }
+
+      const chkShowPoints = document.getElementById('chk-show-points');
+      if (chkShowPoints) {
+        chkShowPoints.checked = state.showPoints;
+        chkShowPoints.addEventListener('change', (e) => {
+          state.showPoints = e.target.checked;
+          renderPolygon();
+        });
+      }
+
+      const chkSnapGrid = document.getElementById('chk-snap-grid');
+      if (chkSnapGrid) {
+        chkSnapGrid.checked = state.snapToNearestGrid;
+        chkSnapGrid.addEventListener('change', (e) => {
+          state.snapToNearestGrid = e.target.checked;
+          updateAll();
+        });
+      }
+
+      const btnApplyAxisRange = document.getElementById('btn-apply-axis-range');
+      const btnAutoAxisRange = document.getElementById('btn-auto-axis-range');
+      if (btnApplyAxisRange) {
+        btnApplyAxisRange.addEventListener('click', () => {
+          const xMinVal = parseFloat(document.getElementById('input-x-min')?.value);
+          const xMaxVal = parseFloat(document.getElementById('input-x-max')?.value);
+          const yMinVal = parseFloat(document.getElementById('input-y-min')?.value);
+          const yMaxVal = parseFloat(document.getElementById('input-y-max')?.value);
+
+          if (!isNaN(xMinVal) && !isNaN(xMaxVal) && xMaxVal > xMinVal) {
+            state.axisRange.xMin = xMinVal;
+            state.axisRange.xMax = xMaxVal;
+          }
+          if (!isNaN(yMinVal) && !isNaN(yMaxVal) && yMaxVal > yMinVal) {
+            state.axisRange.yMin = yMinVal;
+            state.axisRange.yMax = yMaxVal;
+          }
+          updateAll();
+        });
+      }
+
+      if (btnAutoAxisRange) {
+        btnAutoAxisRange.addEventListener('click', () => {
+          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          updateAll();
+        });
+      }
+
+      const btnApplyAxisOrigin = document.getElementById('btn-apply-axis-origin');
+      const btnResetAxisOrigin = document.getElementById('btn-reset-axis-origin');
+      if (btnApplyAxisOrigin) {
+        btnApplyAxisOrigin.addEventListener('click', () => {
+          const ox = parseFloat(document.getElementById('input-origin-x')?.value);
+          const oy = parseFloat(document.getElementById('input-origin-y')?.value);
+          if (!isNaN(ox)) {
+            state.axisOrigin.x = ox;
+            if (state.axisRange.xMin === null) {
+              state.axisRange.xMin = ox;
+            }
+          }
+          if (!isNaN(oy)) {
+            state.axisOrigin.y = oy;
+            if (state.axisRange.yMin === null) {
+              state.axisRange.yMin = oy;
+            }
+          }
+          updateAll();
+        });
+      }
+
+      if (btnResetAxisOrigin) {
+        btnResetAxisOrigin.addEventListener('click', () => {
+          state.axisOrigin = { x: 8000, y: 0 };
+          if (state.axisRange.xMin !== null) state.axisRange.xMin = 8000;
+          if (state.axisRange.yMin !== null) state.axisRange.yMin = 0;
+          updateAll();
+        });
+      }
+
+      const btnResetFonts = document.getElementById('btn-reset-fonts');
+      if (btnResetFonts) {
+        btnResetFonts.onclick = () => {
+          state.fontSizes = JSON.parse(JSON.stringify(defaultFontSizes));
+          applyFontSizes();
+        };
+      }
+
+      const btnReset = document.getElementById('btn-reset');
+      if (btnReset) {
+        btnReset.onclick = () => {
+          state.showPoints = false;
+          state.snapToNearestGrid = true;
+          state.currentN = 60;
+          state.yInterval = "10";
+          state.xInterval = "points";
+          state.gridIntervals = { xMajor: null, xMinor: null, yMajor: null, yMinor: null };
+          state.axisRange = { xMin: null, xMax: null, yMin: null, yMax: null };
+          state.axisOrigin = { x: 8000, y: 0 };
+          state.fontSizes = JSON.parse(JSON.stringify(defaultFontSizes));
+          state.texts = { title: "60個住宅單位每月租金", yTitle: "累積頻數", xTitle: "租金少於 (元)" };
+          state.titlePos = JSON.parse(JSON.stringify(defaultTitlePositions));
+          state.dataPoints = JSON.parse(JSON.stringify(defaultPoints));
+          state.quartilesActive = { q1: false, q2: false, q3: false };
+          state.customLines = [];
+
+          if (chkShowPoints) chkShowPoints.checked = false;
+          if (chkSnapGrid) chkSnapGrid.checked = true;
+          if (selYInterval) selYInterval.value = "10";
+          if (selXInterval) selXInterval.value = "points";
+          ['input-y-major', 'input-y-minor', 'input-x-major', 'input-x-minor'].forEach(id => {
+            const inp = document.getElementById(id);
+            if (inp) inp.value = '';
+          });
+
+          renderSidebarDataTable();
+          updateAll();
+        };
+      }
+    }
+
+    function updateAll() {
+      renderGrid();
+      renderAxisLabels();
+      renderPolygon();
+      renderQuartiles();
+      renderCustomLines();
+      applyTitlePositions();
+      applyFontSizes();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initEvents();
+      setupDragEvents();
+      setupHoverFontControls();
+      setupGraphHUD();
+      renderSidebarDataTable();
+      updateAll();
+    });
+  </script>
+</body>
+</html>
